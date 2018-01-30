@@ -27,7 +27,21 @@ type NewsAPIResponse struct {
 }
 
 func GetNews(c chan<- string) {
-        resp, err := http.Get("https://newsapi.org/v2/top-headlines?country=us&apiKey=58c28f3f027e47659e2e1815a5604ac2&pageSize=10")
+        categories := [3]string{"general", "business", "technology"}
+        var channels [3]chan string
+        for i, category := range categories {
+                channels[i] = make(chan string)
+                go GetNewsByCategory(category, channels[i])
+        }
+        var result string
+        for _, channel := range channels {
+        	result += <-channel
+        }
+        c <- result
+}
+
+func GetNewsByCategory(category string, c chan<- string) {
+        resp, err := http.Get(fmt.Sprintf("https://newsapi.org/v2/top-headlines?country=us&category=%s&apiKey=58c28f3f027e47659e2e1815a5604ac2&pageSize=5", category))
         if err != nil {
                 log.Fatal(err)
         }
@@ -44,8 +58,11 @@ func GetNews(c chan<- string) {
         articles := dat.Articles
 
         var result string
+        result += category + "\n"
         for _, article := range articles {
                 result += fmt.Sprintf("%s - %s\n", article.Title, article.Source.Name)
         }
-        c <- result
+
+        result += "\n"
+        c <- result	
 }
