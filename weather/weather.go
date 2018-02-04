@@ -49,8 +49,48 @@ type WeatherAPIResponse struct {
         Cod  int    `json:"cod"`
 }
 
+type IPAPIResponse struct {
+        As          string  `json:"as"`
+        City        string  `json:"city"`
+        Country     string  `json:"country"`
+        CountryCode string  `json:"countryCode"`
+        Isp         string  `json:"isp"`
+        Lat         float64 `json:"lat"`
+        Lon         float64 `json:"lon"`
+        Org         string  `json:"org"`
+        Query       string  `json:"query"`
+        Region      string  `json:"region"`
+        RegionName  string  `json:"regionName"`
+        Status      string  `json:"status"`
+        Timezone    string  `json:"timezone"`
+        Zip         string  `json:"zip"`
+}
+
+func GetZip() string {
+        resp, err := http.Get("http://ip-api.com/json")
+        if err != nil {
+                log.Fatal(err)
+        }
+        defer resp.Body.Close()
+        body, err := ioutil.ReadAll(resp.Body)
+        if err != nil {
+                log.Fatal(err)
+        }
+
+        var dat IPAPIResponse
+        if err := json.Unmarshal(body, &dat); err != nil {
+                log.Fatal(err)
+        }
+
+        return dat.Zip
+}
+
 func GetWeather(c chan<- string) {
-        resp, err := http.Get("http://api.openweathermap.org/data/2.5/weather?zip=77005,us&appid=3cf9bbdefc803717141614702f1f1658&units=metric")
+        // Get location via local IP.
+        // TODO Consider the case when zip is not available (e.g. non US). Should use city name instead.
+        zip := GetZip()
+
+        resp, err := http.Get(fmt.Sprintf("http://api.openweathermap.org/data/2.5/weather?zip=%s,us&appid=3cf9bbdefc803717141614702f1f1658&units=metric", zip)) // Metric system FTW
         if err != nil {
                 log.Fatal(err)
         }
