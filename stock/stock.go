@@ -6,6 +6,11 @@ import (
         "io/ioutil"
         "log"
         "net/http"
+        "os"
+        "encoding/csv"
+        "path/filepath"
+        "strings"
+        "bufio"
 )
 
 type StockAPIResponse struct {
@@ -45,9 +50,8 @@ type StockAPIResponse struct {
         YtdChange        float64 `json:"ytdChange"`
 }
 
-func GetStocks(c chan<- string) {
-        symbols := [3]string{"spy", "dia", "iwm"}
-        var channels [3]chan string
+func GetStocks(symbols []string, c chan<- string) {
+        channels := make([]chan string, len(symbols))
         for i, symbol := range symbols {
                 channels[i] = make(chan string)
                 go GetStock(symbol, channels[i])
@@ -75,5 +79,60 @@ func GetStock(symbol string, c chan<- string) {
                 log.Fatal(err)
         }
 
-        c <- fmt.Sprintf("%s - %.2f, %.2f%%\n", dat.Symbol, dat.IexRealtimePrice, dat.ChangePercent*100)
+        c <- fmt.Sprintf("%s - %.2f, %.2f%% %s\n", dat.Symbol, dat.IexRealtimePrice, dat.ChangePercent*100, dat.CompanyName)
+}
+
+func ReadStockListConfig() []string {
+        wd, err := os.Getwd()
+        if err != nil {
+                log.Fatal(err)
+        }
+
+        f, err := os.Open(filepath.Join(wd, "/stock/stocklist.csv"))
+        if err != nil {
+                log.Fatal(err)
+        }
+        defer f.Close()
+
+        reader := csv.NewReader(f)
+        table, err := reader.ReadAll()
+        if err != nil {
+                log.Fatal(err)
+        }
+
+        rows := make([]string, len(table))
+        for i, row := range table {
+                rows[i] = row[0]
+        }
+        return rows
+}
+
+func UpdateStockList(rows []string) {
+        stocksStr := strings.Join(rows, ", ")
+
+        // TODO restructure source code 
+        newData := fmt.Sprintf(`package stock
+
+const stockList := {%s}`, stocksStr)
+        
+        wd, err := os.Getwd()
+        if err != nil {
+                log.Fatal(err)
+        }
+        
+        f, err := os.Create(filepath.Join(wd, "/stock/stocklist.go"))
+        if err != nil {
+                log.Fatal(err)
+        }
+        defer f.Close()
+
+        w := bufio.NewWriter(f)
+        nWrite, err := w.WriteString(newData)
+
+        if err != nil {
+                log.Fatal(err)
+        }
+        fmt.Println(nWrite)
+
+        w.Flush()
 }
