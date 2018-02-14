@@ -27,7 +27,7 @@ type NewsAPIResponse struct {
 }
 
 func GetNews(c chan<- string) {
-        categories := [3]string{"general", "business", "technology"}
+        categories := [3]string{"General", "Business", "Technology"}
         var channels [3]chan string
         for i, category := range categories {
                 channels[i] = make(chan string)
